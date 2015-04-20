@@ -42,7 +42,6 @@ def restrequest(rawrequest):
     return json_obj
 
 def downloadrestrequest((rawrequest,path)):
-    print 'downloading %s' % path
     dirname = RunID + os.sep + os.path.dirname(path)
 
     if dirname != '':
@@ -90,15 +89,11 @@ def oragnisefiles(index):
             hrefpath.append((href, path))
     return hrefpath
 
-def pooldownload((href, path)):
-    request = 'http://api.basespace.illumina.com/%s/content?access_token=%s' % (href, AccessToken)
-    print 'downloading %s' % path
-    downloadrestrequest(request, path)
 
 if __name__ == '__main__':
     import time
     start = time.time()
-    pool = Pool(processes=10)
+    pool = Pool(processes=5)
     RunID = options.runid
     AccessToken = options.accesstoken
 
@@ -110,6 +105,7 @@ if __name__ == '__main__':
     noffsets = int(math.ceil(float(totalCount)/1000.0))
     hrefpath = pool.map(oragnisefiles, range(noffsets))
     for foldertup in hrefpath:
+        print 'downloading %s' % foldertup[0][1]
         pool.map(downloadrestrequest, foldertup)
 
     print time.time() - start
