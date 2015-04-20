@@ -82,7 +82,7 @@ def oragnisefiles(index):
         href = json_obj['Response']['Items'][fileindex]['Href']
         path = json_obj['Response']['Items'][fileindex]['Path']
         # pathstr += path + "\n"
-        if "xml" in path and "log" not in path or "bcl" in path or "csv" in path:
+        if "jpg" not in path:
             # hreflist.append(href)
             # pathlist.append(path)
             href = 'http://api.basespace.illumina.com/%s/content?access_token=%s' % (href, AccessToken)
