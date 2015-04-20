@@ -6,6 +6,7 @@ import sys
 import os
 import socket
 import optparse
+from multiprocessing import Pool
 
 def arg_parser():
     cwd_dir = os.getcwd()
@@ -40,7 +41,8 @@ def restrequest(rawrequest):
 
     return json_obj
 
-def downloadrestrequest(rawrequest,path):
+def downloadrestrequest((rawrequest,path)):
+    print 'downloading %s' % path
     dirname = RunID + os.sep + os.path.dirname(path)
 
     if dirname != '':
@@ -59,33 +61,22 @@ def downloadrestrequest(rawrequest,path):
     except URLError, e:
         print 'Got an error code:', e
         outfile.close()
-        downloadrestrequest(rawrequest, path)
+        downloadrestrequest((rawrequest, path))
 
     except socket.error:
         print 'Got a socket error: retrying'
         outfile.close()
-        downloadrestrequest(rawrequest, path)
+        downloadrestrequest((rawrequest, path))
 
 
 options = arg_parser()
-
 RunID = options.runid
 AccessToken = options.accesstoken
 
-request = 'http://api.basespace.illumina.com/v1pre3/runs/%s/files?access_token=%s' %(RunID,AccessToken)
-
-json_obj = restrequest(request)
-totalCount = json_obj['Response']['TotalCount']
-
-noffsets = int(math.ceil(float(totalCount)/1000.0))
-
-hreflist = []
-pathlist = []
-filenamelist = []
-# pathstr = ""
-for index in range(noffsets):
+def oragnisefiles(index):
     offset = 1000*index
-    request = 'http://api.basespace.illumina.com/v1pre3/runs/%s/files?access_token=%s&limit=1000&Offset=%s' %(RunID,AccessToken,offset)
+    hrefpath = []
+    request = 'http://api.basespace.illumina.com/v1pre3/runs/%s/files?access_token=%s&limit=1000&Offset=%s' %(RunID ,AccessToken ,offset)
     json_obj = restrequest(request)
     nfiles = len(json_obj['Response']['Items'])
     for fileindex in range(nfiles):
@@ -93,11 +84,42 @@ for index in range(noffsets):
         path = json_obj['Response']['Items'][fileindex]['Path']
         # pathstr += path + "\n"
         if "xml" in path and "log" not in path or "bcl" in path or "csv" in path:
-            hreflist.append(href)
-            pathlist.append(path)
+            # hreflist.append(href)
+            # pathlist.append(path)
+            href = 'http://api.basespace.illumina.com/%s/content?access_token=%s' % (href, AccessToken)
+            hrefpath.append((href, path))
+    return hrefpath
 
-for index in range(len(hreflist)):
-    request = 'http://api.basespace.illumina.com/%s/content?access_token=%s'%(hreflist[index],AccessToken)
-    print 'downloading %s' %(pathlist[index])
-    downloadrestrequest(request, pathlist[index])
-# open("dir.txt", 'w').write(pathstr)
+def pooldownload((href, path)):
+    request = 'http://api.basespace.illumina.com/%s/content?access_token=%s' % (href, AccessToken)
+    print 'downloading %s' % path
+    downloadrestrequest(request, path)
+
+if __name__ == '__main__':
+    import time
+    start = time.time()
+    pool = Pool(processes=10)
+    RunID = options.runid
+    AccessToken = options.accesstoken
+
+    request = 'http://api.basespace.illumina.com/v1pre3/runs/%s/files?access_token=%s' % (RunID, AccessToken)
+
+    json_obj = restrequest(request)
+    totalCount = json_obj['Response']['TotalCount']
+
+    noffsets = int(math.ceil(float(totalCount)/1000.0))
+    hrefpath = pool.map(oragnisefiles, range(noffsets))
+    for foldertup in hrefpath:
+        pool.map(downloadrestrequest, foldertup)
+
+    print time.time() - start
+
+    # p.map(downloadrestrequest, (range(len(hreflist)),hreflist, pathlist, AccessToken))
+
+    # for index in range(len(hreflist)):
+    #
+    #     request = 'http://api.basespace.illumina.com/%s/content?access_token=%s'%(hreflist[index],AccessToken)
+    #     print 'downloading %s' %(pathlist[index])
+
+        # downloadrestrequest(request, pathlist[index])
+    # open("dir.txt", 'w').write(pathstr)
