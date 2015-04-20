@@ -30,12 +30,12 @@ def restrequest(rawrequest):
     request = Request(rawrequest)
 
     try:
-            response = urlopen(request)
-            json_string = response.read()
-            json_obj = json.loads(json_string)
+        response = urlopen(request)
+        json_string = response.read()
+        json_obj = json.loads(json_string)
 
     except URLError, e:
-            print 'Got an error code:', e
+        print 'Got an error code:', e
         sys.exit()
 
     return json_obj
@@ -52,19 +52,19 @@ def downloadrestrequest(rawrequest,path):
     outfile = open(RunID + os.sep + path,'wb')
 
     try:
-        response = urlopen(request,timeout=1)
-
-    outfile.write(response.read())
-    outfile.close()
+        response = urlopen(request, timeout=1)
+        outfile.write(response.read())
+        outfile.close()
 
     except URLError, e:
         print 'Got an error code:', e
         outfile.close()
-        downloadrestrequest(rawrequest,path)
+        downloadrestrequest(rawrequest, path)
+
     except socket.error:
         print 'Got a socket error: retrying'
         outfile.close()
-        downloadrestrequest(rawrequest,path)
+        downloadrestrequest(rawrequest, path)
 
 
 options = arg_parser()
@@ -82,6 +82,7 @@ noffsets = int(math.ceil(float(totalCount)/1000.0))
 hreflist = []
 pathlist = []
 filenamelist = []
+# pathstr = ""
 for index in range(noffsets):
     offset = 1000*index
     request = 'http://api.basespace.illumina.com/v1pre3/runs/%s/files?access_token=%s&limit=1000&Offset=%s' %(RunID,AccessToken,offset)
@@ -89,12 +90,14 @@ for index in range(noffsets):
     nfiles = len(json_obj['Response']['Items'])
     for fileindex in range(nfiles):
         href = json_obj['Response']['Items'][fileindex]['Href']
-        hreflist.append(href)
         path = json_obj['Response']['Items'][fileindex]['Path']
-        pathlist.append(path)
+        # pathstr += path + "\n"
+        if "xml" in path and "log" not in path or "bcl" in path or "csv" in path:
+            hreflist.append(href)
+            pathlist.append(path)
 
 for index in range(len(hreflist)):
-    if pathlist[index][-3:] == "bcl"
-        request = 'http://api.basespace.illumina.com/%s/content?access_token=%s'%(hreflist[index],AccessToken)
-        print 'downloading %s' %(pathlist[index])
-        downloadrestrequest(request, pathlist[index])
+    request = 'http://api.basespace.illumina.com/%s/content?access_token=%s'%(hreflist[index],AccessToken)
+    print 'downloading %s' %(pathlist[index])
+    downloadrestrequest(request, pathlist[index])
+# open("dir.txt", 'w').write(pathstr)
